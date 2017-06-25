@@ -8,6 +8,9 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+cmake_policy(SET CMP0026 OLD)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/rpavlik-cmake-modules-fe2273")
+include(CreateLaunchers)
 
 if(WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -212,5 +215,22 @@ foreach(CHAPTER ${CHAPTERS})
       endif(MSVC)
     endforeach(DEMO)
 endforeach(CHAPTER)
+
+
+#playground
+file(GLOB PGSOURCE
+	"playground/*.h"
+	"playground/*.cpp"
+)
+set(PGNAME "playground")
+add_executable(${PGNAME} ${PGSOURCE})
+target_link_libraries(${PGNAME} ${LIBS})
+if(WIN32)
+	set_target_properties(${PGNAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/playground")
+	create_target_launcher(${PGNAME} WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/playground")
+endif(WIN32)
+if(MSVC)
+	add_custom_command(TARGET ${PGNAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${ASSIMP_LIBRARY_DLL} $<TARGET_FILE_DIR:${PGNAME}>)
+endif(MSVC)
 
 include_directories(${CMAKE_SOURCE_DIR}/includes)
