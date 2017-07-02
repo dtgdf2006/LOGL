@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include <learnopengl/shader_m.h>
+#include <learnopengl/camera.h>
 #include <stb_image.h>
 
 
@@ -16,13 +17,26 @@ GLFWwindow* Init();
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void ProcessInput(GLFWwindow*);
 int BuildShader(const char*, const char*);
+void MouseCallback(GLFWwindow* window, double xpos, double ypos);
+void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 float switchTexture = 0.2;
 float screenWidth = 800.0f;
 float screenHeight = 600.0f;
 
+// timing
+float deltaTime = 0.0f;	// time between current frame and last frame
+float lastFrame = 0.0f;
+
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+float lastX = screenWidth / 2.0f;
+float lastY = screenHeight / 2.0f;
+bool firstMouse = true;
+
+
 int main()
 {
+
 	GLFWwindow* window = Init();
 	if (!window) {
 		glfwTerminate();
@@ -171,20 +185,25 @@ int main()
 	program.use();
 	program.setInt("texture2", 1);
 
-	glm::mat4 view;
-	view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-	glm::mat4 projection;
-	projection = glm::perspective(glm::radians(45.0f), screenWidth / screenHeight, 0.1f, 100.0f);
 
 	glEnable(GL_DEPTH_TEST);
 	while (!glfwWindowShouldClose(window)) {
-		ProcessInput(window);
+		// per-frame time logic
+		// --------------------
+		float currentFrame = glfwGetTime();
+		deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
 
+		ProcessInput(window);
 
 		//render
 		//------
 		glClearColor(0.2, 0.3, 0.3, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 projection;
+		projection = glm::perspective(glm::radians(45.0f), screenWidth / screenHeight, 0.1f, 100.0f);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture1);
@@ -244,6 +263,11 @@ GLFWwindow* Init()
 	glViewport(0, 0, screenWidth, screenHeight);
 
 	glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+	glfwSetCursorPosCallback(window, MouseCallback);
+	glfwSetScrollCallback(window, ScrollCallback);
+
+	// tell GLFW to capture our mouse
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	int nrAttributes;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
@@ -261,17 +285,27 @@ void ProcessInput(GLFWwindow* w)
 {
 	if (glfwGetKey(w, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(w, true);
-	} else if (glfwGetKey(w, GLFW_KEY_UP) == GLFW_PRESS) {
+	}
+	if (glfwGetKey(w, GLFW_KEY_UP) == GLFW_PRESS) {
 		switchTexture += 0.001;
 		if (switchTexture > 1.0f) {
 			switchTexture = 1.0f;
 		}
-	} else if (glfwGetKey(w, GLFW_KEY_DOWN) == GLFW_PRESS) {
+	}
+	if (glfwGetKey(w, GLFW_KEY_DOWN) == GLFW_PRESS) {
 		switchTexture -= 0.001;
 		if (switchTexture < 0.0f) {
 			switchTexture = 0.0f;
 		}
 	}
+	if (glfwGetKey(w, GLFW_KEY_W) == GLFW_PRESS)
+		camera.ProcessKeyboard(FORWARD, deltaTime);
+	if (glfwGetKey(w, GLFW_KEY_S) == GLFW_PRESS)
+		camera.ProcessKeyboard(BACKWARD, deltaTime);
+	if (glfwGetKey(w, GLFW_KEY_A) == GLFW_PRESS)
+		camera.ProcessKeyboard(LEFT, deltaTime);
+	if (glfwGetKey(w, GLFW_KEY_D) == GLFW_PRESS)
+		camera.ProcessKeyboard(RIGHT, deltaTime);
 
 }
 
@@ -315,4 +349,30 @@ int BuildShader(const char* vertexShaderSource, const char* fragmentShaderSource
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 	return shaderProgram;
+}
+
+// glfw: whenever the mouse moves, this callback is called
+// -------------------------------------------------------
+void MouseCallback(GLFWwindow* window, double xpos, double ypos)
+{
+	if (firstMouse) {
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
+
+	float xoffset = xpos - lastX;
+	float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+	lastX = xpos;
+	lastY = ypos;
+
+	camera.ProcessMouseMovement(xoffset, yoffset);
+}
+
+// glfw: whenever the mouse scroll wheel scrolls, this callback is called
+// ----------------------------------------------------------------------
+void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	camera.ProcessMouseScroll(yoffset);
 }
