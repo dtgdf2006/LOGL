@@ -72,14 +72,13 @@ void main()
     // per lamp. In the main() function we take all the calculated colors and sum them up for
     // this fragment's final color.
     // == =====================================================
-	vec3 result;
     // phase 1: directional lighting
-    //result = CalcDirLight(dirLight, norm, viewDir);
+    vec3 result = CalcDirLight(dirLight, norm, viewDir);
     // phase 2: point lights
-    //for(int i = 0; i < NR_POINT_LIGHTS; i++)
-    //    result += CalcPointLight(pointLights[i], norm, fragPos, viewDir);    
+    for(int i = 0; i < NR_POINT_LIGHTS; i++)
+        result += CalcPointLight(pointLights[i], norm, fragPos, viewDir);    
     // phase 3: spot light
-    result = CalcSpotLight(spotLight, norm, fragPos, viewDir);    
+    result += CalcSpotLight(spotLight, norm, fragPos, viewDir);    
     
     FragColor = vec4(result, 1.0);
 }
@@ -130,12 +129,16 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 	
 	vec3 ambient = light.ambient * texture(material.diffuse, st).rgb;
 
-	float diff = dot(-lightDir, normal);
+	float diff = max(dot(-lightDir, normal), 0.0f);
+	float epsilon = light.cutOff - light.outerCutOff;
+	float theta = dot(lightDir, normalize(light.direction));
+	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0, 1);
 	vec3 diffuse = light.diffuse * texture(material.diffuse, st).rgb * diff;
 	
-	float epsilon = light.cutOff - light.outerCutOff;
+	float spec = pow(max(dot(reflect(lightDir, normal), viewDir), 0), material.shininess);
+	vec3 specular = light.specular * spec * texture(material.specular, st).rgb;
+
 
 	float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
-	//attenuation = 1.0f;
-    return (ambient + diffuse) * attenuation;
+    return (ambient + diffuse + specular) * attenuation * intensity;
 }
