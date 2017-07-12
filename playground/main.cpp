@@ -105,6 +105,14 @@ int main()
 		glm::vec3(1.5f,  0.2f, -1.5f),
 		glm::vec3(-1.3f,  1.0f, -1.5f)
 	};
+
+	// positions of the point lights
+	glm::vec3 pointLightPositions[] = {
+		glm::vec3(0.7f,  0.2f,  2.0f),
+		glm::vec3(2.3f, -3.3f, -4.0f),
+		glm::vec3(-4.0f,  2.0f, -12.0f),
+		glm::vec3(0.0f,  0.0f, -3.0f)
+	};
 	unsigned int VBO, VAO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
@@ -195,6 +203,61 @@ int main()
 		mainShader.use();
 		mainShader.setVec3("lightPos", lightPos);
 
+		/*
+		Here we set all the uniforms for the 5/6 types of lights we have. We have to set them manually and index
+		the proper PointLight struct in the array to set each uniform variable. This can be done more code-friendly
+		by defining light types as classes and set their values in there, or by using a more efficient uniform approach
+		by using 'Uniform buffer objects', but that is something we'll discuss in the 'Advanced GLSL' tutorial.
+		*/
+		// directional light
+		mainShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+		mainShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
+		mainShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
+		mainShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
+		// point light 1
+		mainShader.setVec3("pointLights[0].position", pointLightPositions[0]);
+		mainShader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
+		mainShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
+		mainShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
+		mainShader.setFloat("pointLights[0].constant", 1.0f);
+		mainShader.setFloat("pointLights[0].linear", 0.09);
+		mainShader.setFloat("pointLights[0].quadratic", 0.032);
+		// point light 2
+		mainShader.setVec3("pointLights[1].position", pointLightPositions[1]);
+		mainShader.setVec3("pointLights[1].ambient", 0.05f, 0.05f, 0.05f);
+		mainShader.setVec3("pointLights[1].diffuse", 0.8f, 0.8f, 0.8f);
+		mainShader.setVec3("pointLights[1].specular", 1.0f, 1.0f, 1.0f);
+		mainShader.setFloat("pointLights[1].constant", 1.0f);
+		mainShader.setFloat("pointLights[1].linear", 0.09);
+		mainShader.setFloat("pointLights[1].quadratic", 0.032);
+		// point light 3
+		mainShader.setVec3("pointLights[2].position", pointLightPositions[2]);
+		mainShader.setVec3("pointLights[2].ambient", 0.05f, 0.05f, 0.05f);
+		mainShader.setVec3("pointLights[2].diffuse", 0.8f, 0.8f, 0.8f);
+		mainShader.setVec3("pointLights[2].specular", 1.0f, 1.0f, 1.0f);
+		mainShader.setFloat("pointLights[2].constant", 1.0f);
+		mainShader.setFloat("pointLights[2].linear", 0.09);
+		mainShader.setFloat("pointLights[2].quadratic", 0.032);
+		// point light 4
+		mainShader.setVec3("pointLights[3].position", pointLightPositions[3]);
+		mainShader.setVec3("pointLights[3].ambient", 0.05f, 0.05f, 0.05f);
+		mainShader.setVec3("pointLights[3].diffuse", 0.8f, 0.8f, 0.8f);
+		mainShader.setVec3("pointLights[3].specular", 1.0f, 1.0f, 1.0f);
+		mainShader.setFloat("pointLights[3].constant", 1.0f);
+		mainShader.setFloat("pointLights[3].linear", 0.09);
+		mainShader.setFloat("pointLights[3].quadratic", 0.032);
+		// spotLight
+		mainShader.setVec3("spotLight.position", camera.Position);
+		mainShader.setVec3("spotLight.direction", camera.Front);
+		mainShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+		mainShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+		mainShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+		mainShader.setFloat("spotLight.constant", 1.0f);
+		mainShader.setFloat("spotLight.linear", 0.09);
+		mainShader.setFloat("spotLight.quadratic", 0.032);
+		mainShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+		mainShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
+		mainShader.setVec3("cameraPos", camera.Position);
 		glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
 		
 		for (size_t i = 0; i != (sizeof cubePositions / sizeof glm::vec3); ++i) {
@@ -205,18 +268,22 @@ int main()
 			glm::mat3 normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
 			mainShader.setMat4("MVP", projection * view * model);
 			mainShader.setMat3("normalModel", normalModel);
-			mainShader.setMat3("model", glm::mat3(model));
-			mainShader.setVec3("cameraPos", camera.Position);
+			mainShader.setMat4("model", model);
+
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		
 		lampShader.use();
-		glm::mat4 model;
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.3, 0.3, 0.3));
-		lampShader.setMat4("MVP", projection * view * model);
+
 		glBindVertexArray(lampVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		for (unsigned int i = 0; i < 4; i++)
+		{
+			glm::mat4 model = glm::mat4();
+			model = glm::translate(model, pointLightPositions[i]);
+			model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+			lampShader.setMat4("MVP", projection * view * model);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

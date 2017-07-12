@@ -9,12 +9,12 @@ out vec3 fragPos;
 
 uniform mat4 MVP;
 uniform mat3 normalModel;
-uniform mat3 model;
+uniform mat4 model;
 
 void main()
 {
 	gl_Position = MVP * vec4(aPos, 1.0);
 	st = aTexCoord;
 	normal = normalModel * aNormal;
-	fragPos = model * aPos;
+	fragPos = (model * vec4(aPos, 1.0)).xyz;
 }
