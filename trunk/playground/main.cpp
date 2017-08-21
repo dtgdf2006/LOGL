@@ -1,3 +1,5 @@
+//default stencil mask is all 1
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
