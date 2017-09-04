@@ -89,10 +89,20 @@ int main()
 	// -------------------------
 	Shader shader("2.stencil_testing.vs", "2.stencil_testing.fs");
 	Shader shaderSingleColor("2.stencil_testing.vs", "2.stencil_single_color.fs");
-
+	Shader shaderScreen("screen.vs", "screen.fs");
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
+
+	float screenVertices[] = {
+		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+		1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+
+		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+		1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+		-1.0f, 1.0f, 0.0f, 0.0f, 1.0f
+	};
 
 	float squareVertices[] = {
 		-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
@@ -159,6 +169,50 @@ int main()
 		5.0f, -0.5f, -5.0f,  2.0f, 2.0f
 	};
 
+	// generate a grame buffer
+	unsigned int fbo;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	unsigned int colorTexture;
+	glGenTextures(1, &colorTexture);
+	glBindTexture(GL_TEXTURE_2D, colorTexture);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+
+	unsigned int dsTexture;
+	glGenTextures(1, &dsTexture);
+	glBindTexture(GL_TEXTURE_2D, dsTexture);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, dsTexture, 0);
+
+
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		return EXIT_FAILURE;
+	}
+
+	// screen VAO
+	unsigned int screenVAO, screenVBO;
+	glGenVertexArrays(1, &screenVAO);
+	glGenBuffers(1, &screenVBO);
+	glBindVertexArray(screenVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof screenVertices, screenVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glBindVertexArray(0);
+
 	// square VAO
 	unsigned int squareVAO, squareVBO;
 	glGenVertexArrays(1, &squareVAO);
@@ -221,6 +275,10 @@ int main()
 		// input
 		// -----
 		processInput(window);
+
+		// framebuffer
+		// -----------
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
 		// render
 		// ------
@@ -296,29 +354,40 @@ int main()
 		// Because the stencil buffer is now filled with several 1s. The parts of the buffer that are 1 are not drawn, thus only drawing 
 		// the objects' size differences, making it look like borders.
 		// -----------------------------------------------------------------------------------------------------------------------------
-		//glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-		//glStencilMask(0x00);
-		//glDisable(GL_DEPTH_TEST);
-		//shaderSingleColor.use();
-		//float scale = 1.1;
-		//// line
-		//glBindVertexArray(cubeVAO);
-		//glBindTexture(GL_TEXTURE_2D, cubeTexture);
-		//model = glm::mat4();
-		//model = glm::translate(model, glm::vec3(-1.0f, 0.01f, -1.0f));
-		//model = glm::scale(model, glm::vec3(scale, scale, scale));
-		//shaderSingleColor.setMat4("model", model);
-		//glDrawArrays(GL_TRIANGLES, 0, 36);
-		//model = glm::mat4();
-		//model = glm::translate(model, glm::vec3(2.0f, 0.01f, 0.0f));
-		//model = glm::scale(model, glm::vec3(scale, scale, scale));
-		//shaderSingleColor.setMat4("model", model);
-		//glDrawArrays(GL_TRIANGLES, 0, 36);
-		//glBindVertexArray(0);
-		//glStencilMask(0xFF);
-		//glEnable(GL_DEPTH_TEST);
+		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+		glStencilMask(0x00);
+		glDisable(GL_DEPTH_TEST);
+		shaderSingleColor.use();
+		float scale = 1.1;
+		// line
+		glBindVertexArray(cubeVAO);
+		glBindTexture(GL_TEXTURE_2D, cubeTexture);
+		model = glm::mat4();
+		model = glm::translate(model, glm::vec3(-1.0f, 0.01f, -1.0f));
+		model = glm::scale(model, glm::vec3(scale, scale, scale));
+		shaderSingleColor.setMat4("model", model);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		model = glm::mat4();
+		model = glm::translate(model, glm::vec3(2.0f, 0.01f, 0.0f));
+		model = glm::scale(model, glm::vec3(scale, scale, scale));
+		shaderSingleColor.setMat4("model", model);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glBindVertexArray(0);
+		glStencilMask(0xFF);
+		glEnable(GL_DEPTH_TEST);
 
-
+		// screen
+		// ------
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		shaderScreen.use();
+		glBindVertexArray(screenVAO);
+		glBindTexture(GL_TEXTURE_2D, colorTexture);
+		
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
+		
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -330,8 +399,11 @@ int main()
 	// ------------------------------------------------------------------------
 	glDeleteVertexArrays(1, &cubeVAO);
 	glDeleteVertexArrays(1, &planeVAO);
+	glDeleteVertexArrays(1, &squareVAO);
 	glDeleteBuffers(1, &cubeVBO);
 	glDeleteBuffers(1, &planeVBO);
+	glDeleteBuffers(1, &squareVBO);
+	glDeleteFramebuffers(1, &fbo);
 
 	glfwTerminate();
 	return 0;
