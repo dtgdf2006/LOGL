@@ -15,6 +15,7 @@ uniform bool blinn;
 void main()
 {           
     vec3 color = texture(floorTexture, fs_in.TexCoords).rgb;
+	color = pow(color, vec3(2.2));
     // ambient
     vec3 ambient = 0.05 * color;
     // diffuse
@@ -37,5 +38,7 @@ void main()
         spec = pow(max(dot(viewDir, reflectDir), 0.0), 8.0);
     }
     vec3 specular = vec3(0.3) * spec; // assuming bright white light color
-    FragColor = vec4(ambient + diffuse + specular, 1.0);
+	vec3 outColor = vec3(ambient + diffuse + specular);
+	
+    FragColor = vec4(pow(outColor, vec3(1.0/2.2)), 1.0);
 }

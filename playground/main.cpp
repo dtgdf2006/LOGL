@@ -152,7 +152,7 @@ int main()
 		glBindTexture(GL_TEXTURE_2D, floorTexture);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-		std::cout << (blinn ? "Blinn-Phong" : "Phong") << std::endl;
+		//std::cout << (blinn ? "Blinn-Phong" : "Phong") << std::endl;
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
