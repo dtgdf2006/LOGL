@@ -14,12 +14,12 @@ uniform sampler2D depthMap;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
-float ShadowCaculation(vec4 LightSpaceCoords)
+float ShadowCaculation(vec4 LightSpaceCoords, float bias)
 {
 	vec3 projCoords = LightSpaceCoords.xyz / LightSpaceCoords.w;
 	projCoords = projCoords / 2.0 + 0.5;
-	float closestDepth = texture(depthMap, projCoords.xy).r;
-	float currentDepth = projCoords.z;
+	float closestDepth = texture(depthMap, projCoords.xy).r + bias;
+	float currentDepth = clamp(projCoords.z, 0.0, 1.0);
 	return currentDepth > closestDepth ? 1.0 : 0.0;
 }
 
@@ -41,8 +41,8 @@ void main()
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
     vec3 specular = spec * lightColor;    
-      
-	float shadow = ShadowCaculation(fs_in.LightSpaceCoords);  
+    //float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+	float shadow = ShadowCaculation(fs_in.LightSpaceCoords, 0.0);  
 	
     vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
     

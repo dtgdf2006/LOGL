@@ -30,6 +30,10 @@ void RenderQuad();
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
+// Depth Map
+GLuint shadowWidth = 1024, shadowHeight = 1024;
+bool needUpdateShadowMap = true;
+
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 double lastX = (float)SCR_WIDTH / 2.0;
@@ -39,6 +43,8 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+
 
 // meshes
 unsigned int planeVAO;
@@ -84,18 +90,18 @@ int main()
 	Shader debugDepthQuad("3.1.3.debug_quad.vs", "3.1.3.debug_quad_depth.fs");
 
 	float planeVertices[] = {
-		// positions            // normals         // texcoords
-		25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
-		-25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+		// positions            // normals			// texcoords
+		-25.0f, -0.5f,  25.0f,	0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+		25.0f, -0.5f,  25.0f,	0.0f, 1.0f, 0.0f,	25.0f, 0.0f,
 		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
 
-		25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
-		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
-		25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,  25.0f, 25.0f
+		25.0f, -0.5f, 25.0f,	0.0f, 1.0f, 0.0f,	25.0f, 0.0f,
+		25.0f, -0.5f, -25.0f,	0.0f, 1.0f, 0.0f,	25.0f, 25.0f,
+		-25.0f, -0.5f, -25.0f,	0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
 	};
 
 	glEnable(GL_DEPTH_TEST);
-
+	glEnable(GL_CULL_FACE);
 
 
 	// plane VAO
@@ -114,17 +120,16 @@ int main()
 	glBindVertexArray(0);
 
 
-	// Depth Map
-	const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
 	GLuint depthMap;
 	glGenTextures(1, &depthMap);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f).data);
 
 	GLuint depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
@@ -150,6 +155,25 @@ int main()
 
 		ProcessInput(window);
 
+
+		if (needUpdateShadowMap) {
+			needUpdateShadowMap = false;
+
+			glDeleteTextures(1, &depthMap);
+
+			glGenTextures(1, &depthMap);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+			glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f).data);
+
+			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+		}
+
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -163,9 +187,10 @@ int main()
 		simpleDepthShader.use();
 		glUniformMatrix4fv(glGetUniformLocation(simpleDepthShader.ID, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-
+		glViewport(0, 0, shadowWidth, shadowHeight);
+		glCullFace(GL_FRONT);
 		RenderScene(simpleDepthShader);
+		glCullFace(GL_BACK);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
@@ -381,6 +406,23 @@ void ProcessInput(GLFWwindow *window)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
 	if (IsPressed(window, GLFW_KEY_X))
 		debugMode = !debugMode;
+
+	if (IsPressed(window, GLFW_KEY_UP)) {
+		shadowWidth *= 2;
+		shadowHeight *= 2;
+		needUpdateShadowMap = true;
+		shadowWidth = glm::clamp(shadowWidth, 128u, 16384u);
+		shadowHeight = glm::clamp(shadowHeight, 128u, 16384u);
+	}
+
+	if (IsPressed(window, GLFW_KEY_DOWN)) {
+		shadowWidth /= 2;
+		shadowHeight /= 2;
+		needUpdateShadowMap = true;
+		shadowWidth = glm::clamp(shadowWidth, 128u, 16384u);
+		shadowHeight = glm::clamp(shadowHeight, 128u, 16384u);
+	}
+
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
