@@ -12,7 +12,9 @@
 #include <learnopengl/model.h>
 
 #include <iostream>
+#include <map>
 #include <cstdlib>
+
 
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void MouseCallback(GLFWwindow* window, double xpos, double ypos);
@@ -139,6 +141,7 @@ int main()
 
 	shader.use();
 	shader.setInt("diffuseTexture", 0);
+	shader.setInt("depthMap", 1);
 
 	while (!glfwWindowShouldClose(window)) {
 		float currentFrame = glfwGetTime();
@@ -186,9 +189,13 @@ int main()
 			shader.setMat4("view", view);
 			shader.setVec3("viewPos", camera.Position);
 			shader.setVec3("lightPos", lightPos);
+			shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, woodTexture);
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
 
 			RenderScene(shader);
 		}
@@ -334,6 +341,29 @@ void RenderCube()
 }
 
 
+bool IsPressed(GLFWwindow *window, int key)
+{
+	typedef std::map<int, bool> KeyMapType;
+	static KeyMapType keyMap;
+	KeyMapType::iterator iter = keyMap.find(key);
+	bool keyPressed = false;
+	if (iter == keyMap.end()) {
+		iter = keyMap.insert(std::make_pair(key, keyPressed)).first;
+	} else {
+		keyPressed = iter->second;
+	}
+	if (glfwGetKey(window, key) == GLFW_PRESS && !keyPressed) {
+		keyPressed = true;
+		iter->second = keyPressed;
+		return true;
+	}
+	if (glfwGetKey(window, key) == GLFW_RELEASE) {
+		keyPressed = false;
+		iter->second = keyPressed;
+		return false;
+	}
+}
+
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void ProcessInput(GLFWwindow *window)
@@ -349,9 +379,8 @@ void ProcessInput(GLFWwindow *window)
 		camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_REPEAT)
+	if (IsPressed(window, GLFW_KEY_X))
 		debugMode = !debugMode;
-
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

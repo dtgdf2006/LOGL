@@ -5,13 +5,23 @@ in VS_OUT {
     vec3 FragPos;
     vec3 Normal;
     vec2 TexCoords;
+	vec4 LightSpaceCoords;
 } fs_in;
 
 uniform sampler2D diffuseTexture;
+uniform sampler2D depthMap;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
+float ShadowCaculation(vec4 LightSpaceCoords)
+{
+	vec3 projCoords = LightSpaceCoords.xyz / LightSpaceCoords.w;
+	projCoords = projCoords / 2.0 + 0.5;
+	float closestDepth = texture(depthMap, projCoords.xy).r;
+	float currentDepth = projCoords.z;
+	return currentDepth > closestDepth ? 1.0 : 0.0;
+}
 
 void main()
 {           
@@ -32,7 +42,9 @@ void main()
     spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
     vec3 specular = spec * lightColor;    
       
-    vec3 lighting = (ambient + (diffuse + specular)) * color;    
+	float shadow = ShadowCaculation(fs_in.LightSpaceCoords);  
+	
+    vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
     
     FragColor = vec4(lighting, 1.0);
 }
