@@ -41,6 +41,7 @@ float lastFrame = 0.0f;
 // meshes
 unsigned int planeVAO;
 
+bool debugMode = false;
 
 int main()
 {
@@ -169,26 +170,29 @@ int main()
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		debugDepthQuad.use();
+		if (debugMode) {
+			debugDepthQuad.use();
 
-		glUniform1f(glGetUniformLocation(debugDepthQuad.ID, "near_plane"), near_plane);
-		glUniform1f(glGetUniformLocation(debugDepthQuad.ID, "far_plane"), far_plane);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, depthMap);
-		RenderQuad();
+			glUniform1f(glGetUniformLocation(debugDepthQuad.ID, "near_plane"), near_plane);
+			glUniform1f(glGetUniformLocation(debugDepthQuad.ID, "far_plane"), far_plane);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			RenderQuad();
+		} else {
+			glm::mat4 view = camera.GetViewMatrix();
+			glm::mat4 projection = glm::perspective(camera.Zoom, (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+			shader.use();
+			shader.setMat4("projection", projection);
+			shader.setMat4("view", view);
+			shader.setVec3("viewPos", camera.Position);
+			shader.setVec3("lightPos", lightPos);
 
-		//glm::mat4 view = camera.GetViewMatrix();
-		//glm::mat4 projection = glm::perspective(camera.Zoom, (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-		//shader.use();
-		//shader.setMat4("projection", projection);
-		//shader.setMat4("view", view);
-		//shader.setVec3("viewPos", camera.Position);
-		//shader.setVec3("lightPos", lightPos);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, woodTexture);
 
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, woodTexture);
+			RenderScene(shader);
+		}
 
-		//RenderScene(shader);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -345,6 +349,8 @@ void ProcessInput(GLFWwindow *window)
 		camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_REPEAT)
+		debugMode = !debugMode;
 
 }
 
