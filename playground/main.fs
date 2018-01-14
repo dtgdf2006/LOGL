@@ -18,16 +18,26 @@ float ShadowCaculation(vec4 LightSpaceCoords, float bias)
 {
 	vec3 projCoords = LightSpaceCoords.xyz / LightSpaceCoords.w;
 	projCoords = projCoords / 2.0 + 0.5;
-	float closestDepth = texture(depthMap, projCoords.xy).r + bias;
+	
 	float currentDepth = clamp(projCoords.z, 0.0, 1.0);
-	return currentDepth > closestDepth ? 1.0 : 0.0;
+	vec2 texelSize = 1.0 / textureSize(depthMap, 0);
+	float shadow = 0.0f;
+	for (int x = -1; x <= 1; ++x) {
+		for (int y = -1; y <= 1; ++y) {
+			float pcfDepth = texture(depthMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+		}
+	}
+	shadow /= 9.0f;
+	return shadow;
 }
 
 void main()
 {           
     vec3 color = texture(diffuseTexture, fs_in.TexCoords).rgb;
+	color = pow(color, vec3(2.2));
     vec3 normal = normalize(fs_in.Normal);
-    vec3 lightColor = vec3(0.3);
+    vec3 lightColor = vec3(0.5);
     // ambient
     vec3 ambient = 0.3 * color;
     // diffuse
@@ -46,5 +56,5 @@ void main()
 	
     vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
     
-    FragColor = vec4(lighting, 1.0);
+    FragColor = vec4(pow(lighting, vec3(1.0 / 2.2)), 1.0);
 }
