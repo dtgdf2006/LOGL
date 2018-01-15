@@ -86,8 +86,8 @@ int main()
 
 	//Load Shader
 	Shader shader("main.vs", "main.fs");
-	Shader simpleDepthShader("3.1.3.shadow_mapping_depth.vs", "3.1.3.shadow_mapping_depth.fs");
-	Shader debugDepthQuad("3.1.3.debug_quad.vs", "3.1.3.debug_quad_depth.fs");
+	Shader simpleDepthShader("shadow_mapping_depth.vs", "shadow_mapping_depth.fs");
+	Shader debugDepthQuad("debug_quad.vs", "debug_quad_depth.fs");
 
 	float planeVertices[] = {
 		// positions            // normals			// texcoords
